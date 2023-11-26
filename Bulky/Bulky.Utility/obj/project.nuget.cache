@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "oDuFMIKvQ9WslLEpFUqBUDog+O0/tqVh1nvIHv9C9oND2923BuwOWnOBYaFoQBIP+o2nzRZDdFwekcVWvrdJgw==",
+  "success": true,
+  "projectFilePath": "/Users/berrak/Documents/Development/Bulky/Bulky.Utility/Bulky.Utility.csproj",
+  "expectedPackageFiles": [
+    "/Users/berrak/.nuget/packages/microsoft.netcore.app.ref/7.0.2/microsoft.netcore.app.ref.7.0.2.nupkg.sha512",
+    "/Users/berrak/.nuget/packages/microsoft.aspnetcore.app.ref/7.0.2/microsoft.aspnetcore.app.ref.7.0.2.nupkg.sha512"
+  ],
+  "logs": []
+}

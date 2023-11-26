@@ -1,0 +1,12 @@
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/bin/Debug/net7.0/Bulky.Utility.deps.json
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/bin/Debug/net7.0/Bulky.Utility.dll
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/bin/Debug/net7.0/Bulky.Utility.pdb
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.csproj.AssemblyReference.cache
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.GeneratedMSBuildEditorConfig.editorconfig
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.AssemblyInfoInputs.cache
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.AssemblyInfo.cs
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.csproj.CoreCompileInputs.cache
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.dll
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/refint/Bulky.Utility.dll
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/Bulky.Utility.pdb
+/Users/berrak/Documents/Development/Bulky/Bulky.Utility/obj/Debug/net7.0/ref/Bulky.Utility.dll
