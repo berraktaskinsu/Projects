@@ -1,0 +1,222 @@
+	
+.text
+main:
+	
+	printMenu:
+		li $v0, 4
+		la $a0, menu
+		syscall
+		li $v0, 5
+		syscall
+		move $s2, $v0
+		beq $s2, 1, sub1
+		beq $s2, 2, sub2
+		beq $s2, 3, sub3
+		b quit
+	sub1:
+		jal readArray
+		move $s3, $v0
+		move $s4, $v1
+		b printMenu
+	sub2:
+		move $a0, $s3
+		move $a1, $s4
+		jal insertionSort
+		# $a0: begining address
+		# $a1: array size
+		move $s3, $a0
+		move $s4, $a1
+		b printMenu
+	sub3:	
+		move $a0, $s3
+		move $a1, $s4
+		jal medianMode
+		li $v0, 4
+		la $a0, prom2
+		syscall
+		li $v0, 2 # print median ( $f12 )
+		syscall
+		li $v0, 4
+		la $a0, prom3
+		syscall
+		li $v0, 1
+		move $a0, $v1 # print mod ( $v1 )
+		syscall
+		li $v0, 4
+		la $a0, nline
+		syscall
+		b printMenu
+	quit:
+		li $v0, 10
+		syscall
+readArray:
+	addi $sp, $sp, -20
+	sw $s3, 16($sp)
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+	li $v0, 4
+	la $a0, prom1
+	syscall
+	li $v0, 5
+	syscall
+	move $v1, $v0 # $v1: array size ( returned )
+	mul $a0, $v1, 4
+	li $v0, 9
+	syscall
+	move $s0, $v0
+	move $s1, $v0
+	move $s2, $zero
+	move $s3, $zero
+	move $s4, $zero
+	# $s0: array pointer
+	# $s1: array size
+	loop:
+		beq $s2, $v1, end
+		addi $s2, $s2, 1
+		li $v0, 5
+		syscall
+		move $s3, $v0
+		blt $s3, 0, error
+		bgt $s3, 100, error
+		sw $v0, 0($s0)
+		addi $s0, $s0, 4
+		b loop
+	end:	
+		move $v0, $s1 # $v0 beginning address of array ( returned )
+		lw $s3, 16($sp)
+		lw $s2, 12($sp)
+		lw $s1, 8($sp)
+		lw $s0, 4($sp)
+		lw $ra, 0($sp)
+		addi $sp, $sp, 20
+		jr $ra	
+	error:
+		addi $s2, $s2, -1
+		b loop
+insertionSort:
+	addi $sp, $sp, -28
+	sw $a0, 28($sp) # also save the beginning address of the array
+	sw $s5, 24($sp)
+	sw $s4, 20($sp)
+	sw $s3, 16($sp)
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+	move $s2, $zero
+	move $s3, $zero
+	move $s4, $zero
+	beq $a1, 1, end
+	addi $s1, $zero, 1 # i=1
+	addi $a0, $a0, 4
+	loop1:
+		bge $s1, $a1, end1 # while i<size
+		move $s2, $s1 # j=i
+		move $s0, $a0 # $s0: j-1
+		move $s5, $a0 # $s5: j
+		loop2:
+			ble $s2, $zero, end2
+			addi $s0, $s0, -4
+			lw $s3, 0($s0)
+			lw $s4,	0($s5)
+			ble $s3, $s4, end2
+			sw $s3, 0($s5)
+			sw $s4, 0($s0)
+			addi $s2, $s2, -1 # j=j-1
+			addi $s5, $s5, -4 
+			b loop2
+		end2:
+		addi $s1, $s1, 1
+		addi $a0, $a0, 4 # i=i+1
+		b loop1
+	end1:
+	lw $a0, 28($sp)
+	lw $s5, 24($sp)
+	lw $s4, 20($sp)
+	lw $s3, 16($sp)
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 28
+	jr $ra
+medianMode:
+	addi $sp, $sp, -32
+	sw $s6, 28($sp)
+	sw $s5, 24($sp)
+	sw $s4, 20($sp)
+	sw $s3, 16($sp)
+	sw $s2, 12($sp)
+	sw $s1, 8($sp)
+	sw $s0, 4($sp)
+	sw $ra, 0($sp)
+	move $s2, $zero
+	move $s3, $zero
+	move $s4, $zero
+	# $a0: pointer
+	# $s0: pointer
+	# $a1: size
+	move $s0, $a0
+	# find median: $a0: pointer, $a1: size, return in $v0
+	rem $s1, $a1, 2
+	div $v0, $a1, 2
+	mul $s3, $v0, 4
+	add $a0, $a0, $s3
+	addi $a0, $a0, -4
+	mul $s4, $s1, 4
+	add $a0, $a0, $s4
+	lw $v0, 0($a0)
+	bnez $s1, odd
+	lw $s2,4($a0)
+	add $v0, $v0, $s2
+	b multip
+	odd: # $v0 has median
+	add $v0, $v0, $v0
+	multip:
+	mtc1 $v0, $f12
+	addi $s5, $zero, 2
+	mtc1 $s5, $f0
+	div.s $f12, $f12, $f0
+	move $a0, $s0
+	move $s5, $zero
+	move $s4, $zero
+	move $s3, $zero
+	# find mod: $a0: pointer, $a1: size, return in $v1
+	next:
+	bgt $s3, $s5, change
+	addi $s3, $zero, 1 # $s3:1(count)
+	loop3:
+		bge $s4, $a1, end3
+		addi $s4, $s4, 1
+		lw $s1, 0($a0)
+		addi $a0, $a0, 4
+		lw $s2, 0($a0)
+		bne $s1, $s2, next
+		addi $s3, $s3, 1
+		b loop3
+		change:
+		move $s5, $s3 # $s5: maximum occurances
+		move $s6, $s1 # $s6: element with maximum occurences
+		b next
+	end3:	
+	
+	move $v1, $s6
+	lw $s6, 28($sp)
+	lw $s5, 24($sp)
+	lw $s4, 20($sp)
+	lw $s3, 16($sp)
+	lw $s2, 12($sp)
+	lw $s1, 8($sp)
+	lw $s0, 4($sp)
+	lw $ra, 0($sp)
+	addi $sp, $sp, 32
+	jr $ra
+	
+	.data
+prom1:	.asciiz "Enter number of elements: "
+prom2:	.asciiz "\nMedian: "
+prom3:	.asciiz ", Mode: "
+menu:	.asciiz "1-Read Array\n2-Sort the array in ascending order.\n3-Calculate median and mode\nEnter any other value to quit.\nChoice: "
+nline:	.asciiz "\n"

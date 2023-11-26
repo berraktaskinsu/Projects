@@ -1,0 +1,149 @@
+
+module top  (input   logic 	 clk, reset,            
+	     output  logic[31:0] writedata, dataadr,            
+	     output  logic       memwrite,
+	     output logic[31:0]  instr, pc);  
+
+   logic [31:0] readdata;    
+
+   // instantiate processor and memories  
+   mips mips (clk, reset, pc, instr, memwrite, dataadr, writedata, readdata);  
+   imem imem (pc[7:2], instr);  
+   dmem dmem (clk, memwrite, dataadr, writedata, readdata);
+
+endmodule
+
+
+module testbench();
+    
+    logic clk, reset;
+    logic[31:0] writedata, dataadr, pc, instruction;
+    logic memwrite;
+    top dut( clk, reset, writedata, dataadr, memwrite, instruction, pc );
+    
+    always
+        begin
+            clk = 1; #5; clk = 0; #5;
+        end
+    initial begin
+        reset = 1; #10;
+        reset = 0; 
+    end
+endmodule
+
+
+
+module toptop(
+                input clk, clk_input, reset_input,
+                output memwrite, dp,
+                output [3:0]an,
+                output [6:0]C
+                );
+    
+    
+    logic [31:0] writedata, dataadr, pc, instr;
+    logic [3:0] enables, digit3, digit2, digit1, digit0;
+
+    assign enables = 4'b1111;
+    
+    assign digit0 = dataadr[3:0];
+    assign digit1 = writedata[3:0];
+    assign digit2 = pc[7:4];
+    assign digit3 = pc[3:0];
+    
+    reg clk_pulse, reset_pulse;
+    //top top( clk_pulse, reset_input, writedata, dataadr, memwrite, instr, pc );
+    pulse_controller pcClock( clk, clk_input, reset_pulse, clk_pulse );
+    pulse_controller pcReset( clk ,reset_input, reset_pulse, reset_pulse );
+    display_controller dc( clk_pulse, reset_pulse, enables, digit3, digit2, digit1, digit0, an, C, dp );
+    
+    
+    
+    logic [31:0] readdata;    
+
+   // instantiate processor and memories  
+   mips mips (clk_pulse, reset_input, pc, instr, memwrite, dataadr, writedata, readdata);  
+   imem imem (pc[7:2], instr);  
+   dmem dmem (clk_pulse, memwrite, dataadr, writedata, readdata);
+endmodule
+
+
+module imem ( input logic [5:0] addr, output logic [31:0] instr);
+
+// imem is modeled as a lookup table, a stored-program byte-addressable ROM
+	always_comb
+	   case ({addr,2'b00})		   	// word-aligned fetch
+//		address		instruction
+//		-------		-----------
+		8'h00: instr = 32'h20020005;  
+		8'h04: instr = 32'h2003000c;  
+		8'h08: instr = 32'h04000000;	 // nop
+		8'h0c: instr = 32'h2067fff7;  	
+		8'h10: instr = 32'h00e22025;  
+		8'h14: instr = 32'h04000000;  // nop	
+		8'h18: instr = 32'h00642824;
+		8'h1c: instr = 32'h0ca60001; // subi $a2, $a1, 1
+		8'h20: instr = 32'h00a42820;
+		8'h24: instr = 32'h10c7000a; // beq $a2, $a3, 0x000a
+		8'h28: instr = 32'h0064202a;
+		8'h2c: instr = 32'h10800001;
+		8'h30: instr = 32'h20050000;
+		8'h34: instr = 32'h00e2202a;
+		8'h38: instr = 32'h00853820;
+		8'h3c: instr = 32'h00e23822;
+		8'h40: instr = 32'hac670044;
+		8'h44: instr = 32'h8c020050;
+		8'h48: instr = 32'h08000014; // j 50
+		8'h4c: instr = 32'h20020001;
+		8'h50: instr = 32'hac020054;
+		8'h54: instr = 32'h08000015;	// j 54, so it will loop here
+	     default:  instr = {32{1'bx}};	// unknown address
+	   endcase
+endmodule
+
+
+module alu(input  logic [31:0] a, b, 
+           input  logic [2:0]  alucont, 
+           output logic [31:0] aluRes,
+           output logic zero);
+
+	logic [31:0] diff;
+	assign diff = a - b;
+	always_comb
+	case (alucont)
+		3'b000: aluRes = a & b;
+		3'b001: aluRes = a | b;
+		3'b010: aluRes = a + b;
+		3'b110: aluRes = diff;
+		3'b111: aluRes = diff[31];
+	endcase
+	assign zero = aluRes ? 0 : 1;
+
+  // details of the model need to be 
+  // filled in by you, the designer !
+endmodule
+
+
+module maindec (input logic[5:0] op, 
+	              output logic memtoreg, memwrite, branch,
+	              output logic alusrc, regdst, regwrite, jump,
+	              output logic[1:0] aluop );
+   logic [8:0] controls;
+
+   assign {regwrite, regdst, alusrc, branch, memwrite,
+                memtoreg,  aluop, jump} = controls;
+
+  always_comb
+    case(op)
+      6'b000000: controls <= 9'b110000100; // R-type
+      6'b100011: controls <= 9'b101001000; // LW
+      6'b101011: controls <= 9'b001010000; // SW
+      6'b000100: controls <= 9'b000100010; // BEQ
+      6'b001000: controls <= 9'b101000000; // ADDI
+      6'b000010: controls <= 9'b000000001; // J
+      6'b000001: controls <= 9'b001000000; // nop
+      6'b000011: controls <= 9'b101000010; // subi
+      default:   controls <= 9'bxxxxxxxxx; // illegal op
+    endcase
+endmodule
+

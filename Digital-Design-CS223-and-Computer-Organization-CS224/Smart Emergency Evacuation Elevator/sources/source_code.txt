@@ -1,0 +1,584 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 12/19/2018 07:03:15 PM
+// Design Name: 
+// Module Name: top
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module top( 
+
+    input clk, //100Mhz on Basys3
+
+	// 8x8 display
+	output reset_out, //shift register's reset
+	output OE, 	//output enable, active low 
+	output SH_CP,  //pulse to the shift register
+	output ST_CP,  //pulse to store shift register
+	output DS, 	//shift register's serial input data
+	output [7:0] col_select, // active column, active high );
+	
+	// 4x4 keypad
+    output [3:0] keyb_row,
+    input  [3:0] keyb_col,
+
+	// BASYS3 keys
+	input logic resetTimer,
+	input logic systemReset,
+	input logic executeScenario,
+
+	// 7 Segment Display
+    output a, b, c, d, e, f, g, dp, 
+    output [3:0] an
+
+    
+    );
+    
+    // scanning inputs ( 4x4 keypad )
+    logic [3:0] key_value;
+    keypad4X4 keypad4X4_inst0(
+        .clk(clk),
+        .keyb_row(keyb_row), // just connect them to FPGA pins, row scanner
+        .keyb_col(keyb_col), // just connect them to FPGA pins, column scanner
+        .key_value(key_value), //user's output code for detected pressed key: row[1:0]_col[1:0]
+        .key_valid(key_valid)  // user's output valid: if the key is pressed long enough (more than 20~40 ms), key_valid becomes '1' for just one clock cycle.
+    );    
+
+    // displaying the elevator at initial ( 8x8 display )
+    logic [2:0] col_num;
+    
+    logic [0:7] [7:0] image_red = 
+    {8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000};
+    logic [0:7] [7:0]  image_green = 
+    {8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000};
+    logic [0:7] [7:0]  image_blue = 
+    {8'b00000011, 8'b00000011, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000, 8'b00000000};
+    
+    display_8x8 display_8x8_0(
+        .clk(clk),
+        
+        // RGB data for display current column
+        .red_vect_in(image_red[col_num]),
+        .green_vect_in(image_green[col_num]),
+        .blue_vect_in(image_blue[col_num]),
+        
+        .col_data_capture(), // unused
+        .col_num(col_num),
+        
+        // FPGA pins for display
+        .reset_out(reset_out),
+        .OE(OE),
+        .SH_CP(SH_CP),
+        .ST_CP(ST_CP),
+        .DS(DS),
+        .col_select(col_select)   
+    );
+    
+    // divide clock
+    
+    logic clk2;
+    ClockDivider divide( clk, clk2 );
+    
+    
+    logic [11:0] pas3 = 12'b111110000000;
+    logic [11:0] pas2 = 12'b110000000000;
+    logic [11:0] pas1 = 12'b111100000000;
+    
+    // on button push ( 4x4 keypad )  ...
+	
+    //4 numbers to keep value of any of 4 digits
+    //user's hex inputs for 4 digits
+    logic [3:0] in0 = 4'h0; //initial value
+    logic [3:0] in1 = 4'h0; //initial value
+    logic [3:0] in2 = 4'h0; //initial value
+    logic [3:0] in3 = 4'h0; //initial value
+
+    // this module shows 4 hexadecimal numbers on 4-digit 7-Segment.  
+    // 4 digits are scanned with high speed, then you do not notice that every time 
+    // only one of them is ON. dp is always off.
+    SevSeg_4digit SevSeg_4digit_inst0(
+        .clk(clk),
+        .in3(in3), .in2(in2), .in1(in1), .in0(in0), //user inputs for each digit (hexadecimal)
+        .a(a), .b(b), .c(c), .d(d), .e(e), .f(f), .g(g), .dp(dp), // just connect them to FPGA pins (individual LEDs).
+        .an(an)   // just connect them to FPGA pins (enable vector for 4 digits active low) 
+    );
+
+   
+
+    
+      // updating display    
+       always
+           begin
+               if ( floor == floor0 )
+                   begin
+                       image_red <= { { 6'b000000 , elevator[2], elevator[3] },  { 6'b000000 , elevator[0], elevator[1] } ,
+                                    { pas3[10], pas3[11], pas2[10], pas2[11], pas1[10], pas1[11], 2'b00 },
+                                    { pas3[8], pas3[9], pas2[8], pas2[9], pas1[8], pas1[9], 2'b00 }, 
+                                    { pas3[6], pas3[7], pas2[6], pas2[7], pas1[6], pas1[7], 2'b00 }, 
+                                    { pas3[4], pas3[5], pas2[4], pas2[5], pas1[4], pas1[5], 2'b00 }, 
+                                    { pas3[2], pas3[3], pas2[2], pas2[3], pas1[2], pas1[3], 2'b00 }, 
+                                    { pas3[0], pas3[1], pas2[0], pas2[1], pas1[0], pas1[1], 2'b00 } };
+                       image_blue <= { { 6'b000000 , ~elevator[2], ~elevator[3] },  { 6'b000000 , ~elevator[0], ~elevator[1] }  , image_blue[2:7] };
+                   end
+                
+               else if ( floor == floor1 )
+                    begin
+                         image_red <= { { 4'b0000 , elevator[2], elevator[3], 2'b00 },  { 4'b0000 , elevator[0], elevator[1], 2'b00 } ,
+                                        { pas3[10], pas3[11], pas2[10], pas2[11], pas1[10], pas1[11], 2'b00 },
+                                        { pas3[8], pas3[9], pas2[8], pas2[9], pas1[8], pas1[9], 2'b00 }, 
+                                        { pas3[6], pas3[7], pas2[6], pas2[7], pas1[6], pas1[7], 2'b00 }, 
+                                        { pas3[4], pas3[5], pas2[4], pas2[5], pas1[4], pas1[5], 2'b00 }, 
+                                        { pas3[2], pas3[3], pas2[2], pas2[3], pas1[2], pas1[3], 2'b00 }, 
+                                        { pas3[0], pas3[1], pas2[0], pas2[1], pas1[0], pas1[1], 2'b00 } };
+                         image_blue <= { { 4'b0000 , ~elevator[2], ~elevator[3], 2'b00 },  { 4'b0000 , ~elevator[0], ~elevator[1], 2'b00 }  , image_blue[2:7] };
+                    end
+               else if ( floor == floor2 )
+                        begin
+                            image_red <= { { 2'b00 , elevator[2], elevator[3], 4'b0000 },  { 2'b00 , elevator[0], elevator[1], 4'b0000 } ,
+                                         { pas3[10], pas3[11], pas2[10], pas2[11], pas1[10], pas1[11], 2'b00 },
+                                         { pas3[8], pas3[9], pas2[8], pas2[9], pas1[8], pas1[9], 2'b00 }, 
+                                         { pas3[6], pas3[7], pas2[6], pas2[7], pas1[6], pas1[7], 2'b00 }, 
+                                         { pas3[4], pas3[5], pas2[4], pas2[5], pas1[4], pas1[5], 2'b00 }, 
+                                         { pas3[2], pas3[3], pas2[2], pas2[3], pas1[2], pas1[3], 2'b00 }, 
+                                         { pas3[0], pas3[1], pas2[0], pas2[1], pas1[0], pas1[1], 2'b00 } };
+                            image_blue <= { { 2'b00 , ~elevator[2], ~elevator[3], 4'b0000 },  { 2'b00 , ~elevator[0], ~elevator[1] }  , image_blue[2:7], 4'b0000 };
+                        end
+               else if ( floor == floor3 )
+                            begin
+                                image_red <= { {  elevator[2], elevator[3],  6'b000000 },  { elevator[0], elevator[1], 6'b000000 } ,
+                                             { pas3[10], pas3[11], pas2[10], pas2[11], pas1[10], pas1[11], 2'b00 },
+                                             { pas3[8], pas3[9], pas2[8], pas2[9], pas1[8], pas1[9], 2'b00 }, 
+                                             { pas3[6], pas3[7], pas2[6], pas2[7], pas1[6], pas1[7], 2'b00 }, 
+                                             { pas3[4], pas3[5], pas2[4], pas2[5], pas1[4], pas1[5], 2'b00 }, 
+                                             { pas3[2], pas3[3], pas2[2], pas2[3], pas1[2], pas1[3], 2'b00 }, 
+                                             { pas3[0], pas3[1], pas2[0], pas2[1], pas1[0], pas1[1], 2'b00 } };
+                                image_blue <= { {  ~elevator[2], ~elevator[3],  6'b000000 },  {  ~elevator[0], ~elevator[1] }  , image_blue[2:7],  6'b000000 };
+                            end
+            end
+    
+    
+    
+    
+    // Declaring Variables
+    
+    typedef enum logic [1:0] { floor0, floor1, floor2, floor3 } floorType;
+    floorType [1:0] floor;
+    logic p1;
+    logic p2;
+    logic p3;
+    logic p1has4;
+    logic p2has4;
+    logic p3has4;
+    logic [3:0] elevator = 4'b0000;
+    logic full;
+
+
+    
+    // initialize variables
+
+    logic start = 1'b0;
+
+    always
+        begin
+            p1 <= ( pas1[11] == 1'b1 );
+            p2 <= ( pas2[11] == 1'b1 );
+            p3 <= ( pas3[11] == 1'b1 );
+            p1has4 <= ( pas1[11:8] == 4'b1111 );
+            p2has4 <= ( pas2[11:8] == 4'b1111 );
+            p3has4 <= ( pas3[11:8] == 4'b1111 );
+            full <= ( elevator == 4'b1111 );	
+
+        end
+    
+    
+    // Change stay and up
+    
+    logic stay;
+    logic up;
+         
+    always
+        begin
+            // floor == 0
+            if       ( ( floor == floor0 ) && ( p1 || p2 || p3 ) ) 
+                begin
+                    stay <= 1'b0; 
+                    up <= 1'b1;
+                end
+            else if  ( ( floor == floor0 ) && ~( p1 || p2 || p3 ) ) 
+                begin
+                    stay <= 1'b1; 
+                end
+            else if  ( ( floor != floor0 ) && ( full == 1 ) ) 
+                begin
+                    stay <= 1'b0; 
+                    up <= 1'b0;
+                end
+            else if  ( ( floor != floor0 ) && ~( p1 || p2 || p3 ) ) 
+                begin
+                    stay <= 1'b0; up <= 1'b0;
+                end
+            // floor == 1
+            else if  ( ( floor == floor1 ) && ( p2has4 || p3has4 ) ) 
+                begin
+                    stay <= 1'b0; 
+                    up <= 1'b1;
+                end
+            else if  ( ( floor == floor1 ) && ( ~p2has4 && ~p3has4 && p1has4 ) ) stay <= 1'b1;
+            else if  ( ( floor == floor1 ) && ( ~p2has4 && ~p3has4 && ~p1has4 && ( p2 || p3 ) ) ) 
+                begin
+                    stay <= 1'b0; 
+                    up <= 1'b1;
+                end
+            else if  ( ( floor == floor1 ) && ( ~p2has4 && ~p3has4 && ~p1has4 && ~( p2 || p3 ) && p1 ) ) stay <= 1'b1;
+            else if  ( ( floor == floor1 ) && ( ~p2has4 && ~p3has4 && ~p1has4 && ~( p2 || p3 ) && ~p1 ) ) 
+                begin
+                    stay <= 1'b0;
+                    up <= 1'b0;
+                end
+            // floor == 2
+            else if  ( ( floor == floor2 ) && ( p3has4 ) ) 
+                begin
+                    stay <= 1'b0; 
+                    up <= 1'b1;
+                end
+            else if  ( ( floor == floor2 ) && ( ~p3has4 && p2has4 ) ) stay <= 1'b1;
+            else if  ( ( floor == floor2 ) && ( ~p2has4 && ~p3has4 && p3 ) ) 
+                begin
+                    stay <= 1'b0; 
+                    up <= 1'b1;
+                end
+            else if  ( ( floor == floor2 ) && ( ~p2has4 && ~p3has4 && ~p3 && p2 ) ) stay <= 1'b1; 
+            else if  ( ( floor == floor2 ) && ( ~p2has4 && ~p3has4 && ~p3 && ~p2 && p1 ) ) 
+                begin
+                    stay <= 1'b0;
+                    up <= 1'b0;
+                end
+            // floor == 3
+            else if  ( ( floor == floor3 ) && p3 ) stay <= 1'b1; 
+            else if  ( ( floor == floor3 ) && ~p3 ) 
+                begin 
+                    stay <= 1'b0; 
+                    up <= 1'b0;
+                end
+            end
+
+    always@ ( posedge clk )
+        begin 
+            if ( executeScenario == 1'b1 ) start <=  1'b1; 
+        end
+                     
+    // Change floor         
+    logic [26:0] count = {27{1'b0}};
+    always@ ( posedge clk ) //... stay, up ve floor a göre floor degistir.
+        begin
+        if ( systemReset )
+        begin // if systemReset
+            pas1 = 0;
+            pas2 = 0;
+            pas3 = 0;
+            elevator = 0;
+            floor = 0;
+            start = 1'b0; 
+            in0 <= 4'h0;
+            in1 <= 4'h0;
+            in2 <= 4'h0;
+        end // end if systemReset
+        else
+        begin // if !systemReset
+            if ( !start ) // Add Passengers
+                begin // if !start
+                    if (key_valid == 1'b1)
+                        begin
+                            case(key_value)
+                                4'b11_00: pas3 <= { 1'b1, pas3[11:1] }; // increase passengers on floor 3
+                                4'b11_01: pas3 <= { pas3[10:0], 1'b0 }; // decrease passangers on floor 3
+                                4'b10_00: pas2 <= { 1'b1, pas2[11:1] }; // increase passangers on floor 2
+                                4'b10_01: pas2 <= { pas2[10:0], 1'b0 }; // decrease passangers on floor 2
+                                4'b01_00: pas1 <= { 1'b1, pas1[11:1] }; // increase passangers on floor 1
+                                4'b01_01: pas1 <= { pas1[10:0], 1'b0 }; // decrease passangers on floor 1
+                            endcase
+                        end
+                end
+            else // Execute Scenario
+                begin // if start
+                count <= count + 1;
+                if ( count == 27'd49_999_999 ) 
+                    begin // if 1 second
+                        if ( resetTimer )
+                            begin // if resetTimer
+                                in0 <= 4'h0;
+                                in1 <= 4'h0;
+                                in2 <= 4'h0;
+                            end
+                        else
+                            begin // if !resetTimer
+                                in0 <= in0 + 4'd1;
+                                if ( in0 == 4'h9 )
+                                    begin
+                                        in0 <= 4'h0;
+                                        in1 <= in1 + 4'd1;
+                                    end
+                                if ( in1 == 4'h10 )
+                                    begin
+                                        in1 <= 4'h0;
+                                        in2 <= in2 + 4'd1;
+                                    end
+                                
+                            end // end if !resetTimer
+                        if ( stay )
+                            begin // if stay
+                                if ( floor == floor0 ) elevator <= 4'b0000;// STOP
+                                else if ( floor == floor1 ) 
+                                    begin
+                                        if ( elevator == 4'b0000 ) 
+                                            begin
+                                                elevator <= pas1[11:8];
+                                                pas1 <= { pas1[7:0], 4'b0000 };
+                                            end
+                                        else if ( elevator == 4'b1000 ) 
+                                            begin
+                                                elevator[2:0] <= pas1[11:9];
+                                                pas1 <= { pas1[8:0], 3'b000 };
+                                            end
+                                        else if ( elevator == 4'b1100 ) 
+                                            begin
+                                                elevator[1:0] <= pas1[11:10];
+                                                pas1 <= { pas1[9:0], 2'b00 };
+                                            end
+                                        else if ( elevator == 4'b1110 ) 
+                                            begin
+                                                elevator[0] <= 1'b1;
+                                                pas1 <= { pas1[10:0], 1'b0 };
+                                            end
+                                    end// TAKE PEOPLE AT FLOOR 1
+                                else if ( floor == floor2 ) 
+                                    begin
+                                        if ( elevator == 4'b0000 ) 
+                                            begin
+                                                elevator <= pas2[11:8];
+                                                pas2 <= { pas2[7:0], 4'b0000 };
+                                            end
+                                        else if ( elevator == 4'b1000 ) 
+                                            begin
+                                                elevator[2:0] <= pas2[11:9];
+                                                pas2 <= { pas2[8:0], 3'b000 };
+                                            end
+                                        else if ( elevator == 4'b1100 ) 
+                                            begin
+                                                elevator[1:0] <= pas2[11:10];
+                                                pas2 <= { pas2[9:0], 2'b00 };
+                                            end
+                                        else if ( elevator == 4'b1110 ) 
+                                            begin
+                                                elevator[0] <= 1'b1;
+                                                pas2 <= { pas2[10:0], 1'b0 };
+                                            end                            
+                                    end// TAKE PEOPLE AT FLOOR 2
+                                else if ( floor == floor3 ) 
+                                    begin
+                                        if ( elevator == 4'b0000 ) 
+                                            begin
+                                                elevator <= pas3[11:8];
+                                                pas3 <= { pas3[7:0], 4'b0000 };
+                                            end
+                                        else if ( elevator == 4'b1000 ) 
+                                            begin
+                                                elevator[2:0] <= pas3[11:9];
+                                                pas3 <= { pas3[8:0], 3'b000 };
+                                            end
+                                        else if ( elevator == 4'b1100 ) 
+                                            begin
+                                                elevator[1:0] <= pas3[11:10];
+                                                pas3 <= { pas3[9:0], 2'b00 };
+                                            end
+                                        else if ( elevator == 4'b1110 ) 
+                                            begin
+                                                elevator[0] <= 1'b1;
+                                                pas3 <= { pas3[10:0], 1'b0 };
+                                            end
+                                    end// TAKE PEOPLE AT FLOOR 3
+                            end // end if stay
+                    else 
+                        begin // if !stay
+                            if ( up )
+                                begin // if up
+                                   in3 <= in3 + 4'd1;
+//                                  if ( in3 == 4'hf ) in3 <= 4'h9;
+                                    if ( floor == floor0 ) 
+                                        begin
+                                            floor <= floor1;
+                                            elevator <= 4'b0000;
+                                        end
+                                    else if ( floor == floor1 ) floor <= floor2;
+                                    else if ( floor == floor2 ) floor <= floor3;
+                                end // end if up
+                            else 
+                                begin // if !up
+//                                    in3 <= in3 - 4'd1;
+//                                    if ( in3 == 4'h9 ) in3 <= 4'hf;
+                                    if ( floor == floor1 ) floor <= floor0;
+                                    else if ( floor == floor2 ) floor <= floor1;
+                                    else if ( floor == floor3 ) floor <= floor2;             
+                                end // end if !up
+                        end // end if !stay
+                        count = 0;
+                    end // end if 1 second
+                end // end scenario  
+        end // if !systemReset
+        end
+        
+        
+endmodule
+
+
+module ClockDivider( input clk_in,
+                     output clk_out );
+
+    logic [26:0] count = {27{1'b0}};
+    logic clk_NoBuf;
+    always@ (posedge clk_in) begin
+        count <= count + 1;
+    end
+    // you can modify 25 to have different clock rate
+    assign clk_NoBuf = count[26];
+    BUFG BUFG_inst (
+     .I(clk_NoBuf), // 1-bit input: Clock input
+     .O(clk_out) // 1-bit output: Clock output
+    );
+    
+endmodule
+
+
+`timescale 1 ps / 1 ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: Hamzeh Ahangari
+// 
+// Create Date: 
+// Design Name: 
+// Module Name: 
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+// This module shows 4 decimal numbers on 4-digit 7-Segment.  
+// 4 digits are scanned with high speed, then you do not notice that every time 
+// only one of them is ON. dp is always off.
+
+// LED positions inside 7-segment
+//    A 
+//  F   B
+//    G
+//  E   C
+//    D      DP
+
+// digit positions on Basys3 :
+// in3(left), in2, in1, in0(right)
+
+(* keep_hierarchy = "yes" *) 
+module SevSeg_4digit(
+ input clk,
+ input [3:0] in0, in1, in2, in3, //user inputs for each digit (hexadecimal value)
+ output a, b, c, d, e, f, g, dp, // just connect them to FPGA pins (individual LEDs).
+ output [3:0] an   // just connect them to FPGA pins (enable vector for 4 digits, active low)
+ );
+ 
+// divide system clock (100Mhz for Basys3) by 2^N using a counter, which allows us to multiplex at lower speed
+localparam N = 18;
+logic [N-1:0] count = {N{1'b0}}; //initial value
+always@ (posedge clk)
+	count <= count + 1;
+
+ 
+logic [3:0]digit_val; // multiplexer of digits
+logic [3:0]digit_en;  // decoder of enable bits
+ 
+always_comb
+ begin
+ digit_en = 4'b1111; 
+ digit_val = in0; 
+ 
+  case(count[N-1:N-2]) //using only the 2 MSB's of the counter 
+    
+   2'b00 :  //select first 7Seg.
+    begin
+     digit_val = in0;
+     digit_en = 4'b1110;
+    end
+    
+   2'b01:  //select second 7Seg.
+    begin
+     digit_val = in1;
+     digit_en = 4'b1101;
+    end
+    
+   2'b10:  //select third 7Seg.
+    begin
+     digit_val = in2;
+     digit_en = 4'b1011;
+    end
+     
+   2'b11:  //select forth 7Seg.
+    begin
+     digit_val = in3;
+     digit_en = 4'b0111;
+    end
+  endcase
+ end
+ 
+
+//Convert digit value to LED vector. LEDs are active low.
+logic [6:0] sseg_LEDs; 
+always_comb
+ begin 
+  sseg_LEDs = 7'b1111111; //default
+  case(digit_val)
+   4'd0 : sseg_LEDs = 7'b1000000; //to display 0
+   4'd1 : sseg_LEDs = 7'b1111001; //to display 1
+   4'd2 : sseg_LEDs = 7'b0100100; //to display 2
+   4'd3 : sseg_LEDs = 7'b0110000; //to display 3
+   4'd4 : sseg_LEDs = 7'b0011001; //to display 4
+   4'd5 : sseg_LEDs = 7'b0010010; //to display 5
+   4'd6 : sseg_LEDs = 7'b0000010; //to display 6
+   4'd7 : sseg_LEDs = 7'b1111000; //to display 7
+   4'd8 : sseg_LEDs = 7'b0000000; //to display 8
+   4'd9 : sseg_LEDs = 7'b0010000; //to display 9
+   4'd10: sseg_LEDs = 7'b1111110; //to display a
+   4'd11: sseg_LEDs = 7'b1111101; //to display b
+   4'd12: sseg_LEDs = 7'b1111011; //to display c
+   4'd13: sseg_LEDs = 7'b1110111; //to display d
+   4'd14: sseg_LEDs = 7'b1101111; //to display e
+   4'd15: sseg_LEDs = 7'b1011111; //to display f   
+   default : sseg_LEDs = 7'b0111111; //dash
+  endcase
+ end
+ 
+assign an = digit_en; 
+assign {g, f, e, d, c, b, a} = sseg_LEDs; 
+assign dp = 1'b1; //turn dp off
+ 
+ 
+endmodule
